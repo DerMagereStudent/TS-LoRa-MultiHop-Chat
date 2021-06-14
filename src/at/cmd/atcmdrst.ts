@@ -1,6 +1,6 @@
 import { AtCmd, AtCmdState, AtCmdString } from "./atcmd";
 
-export class ATCmdRst extends AtCmd {
+export class AtCmdRst extends AtCmd {
     sent: boolean;
     sendAck: boolean;
     module: boolean;
