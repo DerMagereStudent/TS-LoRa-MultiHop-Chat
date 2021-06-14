@@ -2,7 +2,7 @@ import express from 'express';
 
 const PORT: number = 11342;
 
-const app = express();
+const app: express.Application = express();
 app.use(express.json());
 
 app.get('/', (req, res) => {
