@@ -1,4 +1,5 @@
 import express from 'express';
+import { ByteUtils } from './utils/byteutils';
 
 const PORT: number = 11342;
 
