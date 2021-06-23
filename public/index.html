@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epic Lora Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="chats" class="inline-block color-darkest-bg"></div>
+    <div id="chat">
+        <div id="chat-header" class="inline-block color-darker-bg"></div>
+        <div id="chat-content" class="inline-block color-dark-bg"></div>
+        <div id="chat-log" class="inline-block color-darkest-bg">
+            <div id="at-log" class="inline-block color-darkest-bg"></div>
+            <div id="caodv-log" class="inline-block color-darker-bg"></div>
+            <div id="routing-table" class="inline-block color-darkest-bg"></div>
+            <div id="blacklist" class="inline-block color-darker-bg"></div>
+        </div>
+        <div id="chat-input" class="inline-block color-darker-bg">
+            <input id="chat-input-text" type="text" placeholder="Message" onkeypress="onInputKeyPress()">
+            <p id="button-send" class="text-button" onclick="sendMessage()">Send</p>
+            <p id="button-toggle-log" class="text-button">Toggle Log</p>
+        </div>
+    </div>
+    <script>
+        addEventListener("load", function() {
+            setTimeout(receiveAtLog, 500);
+            setTimeout(receiveCaodvLog, 500);
+            setTimeout(receiveRoutingTable, 500);
+            setTimeout(receiveBlacklist, 500);
+        });
+
+        async function receiveAtLog() {
+            sendGET("/api/at-log", function(data) {
+                data.forEach(element => {
+                    
+                });
+
+                setTimeout(receiveAtLog, 500);
+            });
+        }
+
+        async function receiveCaodvLog() {
+            sendGET("/api/caodv-log", function(data) {
+                setTimeout(receiveCaodvLog, 500);
+            });
+        }
+
+        async function receiveRoutingTable() {
+            sendGET("/api/routing-table", function(data) {
+                setTimeout(receiveRoutingTable, 500);
+            });
+        }
+
+        async function receiveBlacklist() {
+            sendGET("/api/blacklist", function(data) {
+                setTimeout(receiveBlacklist, 500);
+            });
+        }
+
+        async function sendGET(path, callback) {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (this.readyState != 4) return;
+
+                if (this.status == 200) {
+                    var data = JSON.parse(this.responseText);
+                    callback(data);
+                }
+
+                setTimeout(function() { receiveMessages(); }, 500);
+            };
+
+            xhr.open('GET', path, true);
+            xhr.send();
+        }
+        
+        function onInputKeyPress() {
+            if(event.key !== 'Enter')
+                return;
+
+            //sendMessage();
+        }
+    </script>
+</body>
+</html>

@@ -16,6 +16,10 @@ export class ByteUtils {
         return -128 + (b - 128);
     }
 
+    static inc(byte: number): number {
+        return (byte + 1) & 0xff;
+    }
+
     /**
      * Subtracts b from a, dropping the overflow
      * @returns Signed byte between 127 and -128

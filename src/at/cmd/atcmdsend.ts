@@ -1,6 +1,6 @@
 import { AtCmd, AtCmdState, AtCmdString } from "./atcmd";
 
-export class ATCmdSend extends AtCmd {
+export class AtCmdSend extends AtCmd {
     addr: number;
     msg: string;
 

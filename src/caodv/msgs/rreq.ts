@@ -26,7 +26,7 @@ export class CaodvRREQ {
             this.type,
             this.unknownSeq ? 1 : 0,
             this.hopCount,
-            ByteUtils.unsigned(this.broadcastID),
+            this.broadcastID,
             this.originAddr,
             ByteUtils.unsigned(this.originSeqNumber),
             this.destAddr,
@@ -43,7 +43,7 @@ export class CaodvRREQ {
         return new CaodvRREQ(
             bytes[1] == 1,
             bytes[2],
-            ByteUtils.signed(bytes[3]),
+            bytes[3],
             bytes[4],
             ByteUtils.signed(bytes[5]),
             bytes[6],

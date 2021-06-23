@@ -15,6 +15,7 @@ export class CaodvSendTextReqAck {
 
     str(): string {
         return Parsing.bytesToStr([
+            this.type,
             this.originAddr,
             this.destAddr,
             ByteUtils.unsigned(this.msgSeqNumber)

@@ -22,7 +22,7 @@ export enum AtLogType {
     Receive
 }
 
-export class ATClient {
+export class AtClient {
     port!: SerialPort;
     running: boolean = false;
 
@@ -90,7 +90,7 @@ export class ATClient {
 
         if (!this.pendingCmds || this.pendingCmds.length == 0 || FlagUtils.hasFlag(this.pendingCmds[0].state(), AtCmdState.Send)) {
             if (!this.buffer || this.buffer.length == 0) {
-                setTimeout(this.run, 20);
+                setTimeout(this.run.bind(this), 20);
                 return;
             }
 
@@ -102,23 +102,23 @@ export class ATClient {
                 var content: string = parts.length < 4 ? msg : parts.slice(3).join(',');
                 
                 this.callbacks.forEach((val, i, c) => { val(addr, content) });
-                this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Receive) });
+                this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Receive); });
             } else {
                 if (this.pendingCmds.length == 0) {
-                    setTimeout(this.run, 20);
+                    setTimeout(this.run.bind(this), 20);
                     return;
                 }
 
                 var valid: boolean = this.pendingCmds[0].processResponse(msg);
-                this.logCallbacks.forEach((val, i, c) => { val(msg, valid ? AtLogType.Valid : AtLogType.Invalid) });
+                this.logCallbacks.forEach((val, i, c) => { val(msg, valid ? AtLogType.Valid : AtLogType.Invalid); });
             }
         } else {
             var msg: string = this.pendingCmds[0].nextString();
             this.port.write(msg);
             this.pendingCmds[0].confirmSend();
-            this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Send) });
+            this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Send); });
         }
         
-        setTimeout(this.run, 20);
+        setTimeout(this.run.bind(this), 20);
     }
 }
