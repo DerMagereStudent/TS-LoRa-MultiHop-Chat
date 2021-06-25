@@ -1,8 +1,8 @@
 
 export enum AtCmdState {
-    Finished    = 1 << 0,
-    Success     = 1 << 0,
-    Send        = 1 << 0
+    Finished    = 0x00000001,
+    Success     = 0x00000002,
+    Send        = 0x00000004
 }
 
 export enum AtCmdString {

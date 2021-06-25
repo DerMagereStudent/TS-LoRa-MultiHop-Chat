@@ -8,26 +8,29 @@ app.use(express.json());
 app.use(express.static("./public"));
 
 app.get('/api/at-log', (req, res) => {
-    res.status(200).send(JSON.stringify(client.atLog));
+    var log = client.atLog;
+    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify(log));
+    client.atLog = [];
 });
 
 app.get('/api/caodv-log', (req, res) => {
-    res.status(200).send(JSON.stringify([1, 2, 3]));
+    var log = client.msgLog;
+    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify(log));
+    client.msgLog = [];
 });
 
 app.get('/api/routing-table', (req, res) => {
-    res.status(200).send(JSON.stringify(client.routingTable));
+    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify([...client.routingTable.entries()]));
 });
 
 app.get('/api/blacklist', (req, res) => {
-    res.status(200).send(JSON.stringify(client.blacklistClient));
+    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify([...client.blacklist.entries()]));
 });
 
 var client: CaodvClient = new CaodvClient();
-client.start();
 
 app.listen(PORT, () => {
     console.log(`Listening to port ${PORT}`);
-
-    client.requestRoute(13);
+    client.start();
+    client.requestRoute(10);
 });

@@ -1,3 +1,5 @@
+import { Socket } from "net";
+import { createInterface } from "readline";
 import SerialPort from "serialport";
 import { FlagUtils } from "../utils/flagutils";
 import { ATConfig } from "./cfg/atcfg";
@@ -33,6 +35,7 @@ export class AtClient {
     logCallbacks: LogCallback[] = [];
 
     parser: SerialPort.parsers.Readline;
+    c: number = 0;
 
     constructor() {        
         this.parser = new SerialPort.parsers.Readline({
@@ -60,7 +63,6 @@ export class AtClient {
                 dataBits: pcfg.dataBits
             }
         );
-
         this.port.pipe(this.parser);
 
         this.beginSend(new AtCmdRst());
@@ -88,7 +90,7 @@ export class AtClient {
         while (this.pendingCmds && this.pendingCmds.length > 0 && FlagUtils.hasFlag(this.pendingCmds[0].state(), AtCmdState.Finished))
             this.pendingCmds.shift();
 
-        if (!this.pendingCmds || this.pendingCmds.length == 0 || FlagUtils.hasFlag(this.pendingCmds[0].state(), AtCmdState.Send)) {
+        if (!this.pendingCmds || this.pendingCmds.length == 0 || !FlagUtils.hasFlag(this.pendingCmds[0].state(), AtCmdState.Send)) {
             if (!this.buffer || this.buffer.length == 0) {
                 setTimeout(this.run.bind(this), 20);
                 return;

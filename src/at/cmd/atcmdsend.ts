@@ -73,7 +73,7 @@ export class AtCmdSend extends AtCmd {
         if (this.sent || this.error)
             return AtCmdState.Finished | (!this.error ? AtCmdState.Success : 0);
 
-        if (!this.addrSent || !this.prepSent || !this.dataSent && this.prepSendAck)
+        if (!this.addrSent || !this.prepSent && this.addrSendAck || !this.dataSent && this.prepSendAck)
             return AtCmdState.Send;
 
         return 0;

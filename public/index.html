@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="ASCII">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Epic Lora Chat</title>
     <link rel="stylesheet" href="style.css">
@@ -14,8 +14,28 @@
         <div id="chat-log" class="inline-block color-darkest-bg">
             <div id="at-log" class="inline-block color-darkest-bg"></div>
             <div id="caodv-log" class="inline-block color-darker-bg"></div>
-            <div id="routing-table" class="inline-block color-darkest-bg"></div>
-            <div id="blacklist" class="inline-block color-darker-bg"></div>
+            <div id="routing-table" class="inline-block color-darkest-bg">
+                <table id="rt">
+                    <tr>
+                        <th>Dest</th>
+                        <th>NextHop</th>
+                        <th>Metrik</th>
+                        <th>SeqNum</th>
+                        <th>ValidSeq</th>
+                        <th>Precursors</th>
+                        <th>Lifetime</th>
+                        <th>Valid</th>
+                      </tr>
+                </table>
+            </div>
+            <div id="blacklist" class="inline-block color-darker-bg">
+                <table id="bl">
+                    <tr>
+                        <th>Dest</th>
+                        <th>Lifetime</th>
+                      </tr>
+                </table>
+            </div>
         </div>
         <div id="chat-input" class="inline-block color-darker-bg">
             <input id="chat-input-text" type="text" placeholder="Message" onkeypress="onInputKeyPress()">
@@ -33,8 +53,11 @@
 
         async function receiveAtLog() {
             sendGET("/api/at-log", function(data) {
+                const log = document.getElementById("at-log");
+
                 data.forEach(element => {
-                    
+                    log.innerHTML += `<p class="log-message ${getClassForAtLogType(element.type)}">${element.msg}</p>`;
+                    log.scrollTo(0, log.scrollHeight);
                 });
 
                 setTimeout(receiveAtLog, 500);
@@ -43,18 +66,64 @@
 
         async function receiveCaodvLog() {
             sendGET("/api/caodv-log", function(data) {
+                const log = document.getElementById("caodv-log");
+
+                data.forEach(element => {
+                    log.innerHTML += `<p class="log-message ${getClassForCaodvLogType(element.type)}">${element.msg}</p>`;
+                    log.scrollTo(0, log.scrollHeight);
+                });
+
                 setTimeout(receiveCaodvLog, 500);
             });
         }
 
         async function receiveRoutingTable() {
             sendGET("/api/routing-table", function(data) {
+                //console.log(data);
+                var table = document.getElementById("rt");
+                map = new Map(data);
+
+                if (table !== null) {
+                    for(var i = table.rows.length - 1; i > 0; i--)
+                        table.deleteRow(i);
+
+                    map.forEach((value, key, map) => {
+                        var row = table.insertRow(-1);
+                        row.insertCell(-1).innerHTML = `${key}`;
+                        row.insertCell(-1).innerHTML = `${value.nextHop}`;
+                        row.insertCell(-1).innerHTML = `${value.hopCount}`;
+                        row.insertCell(-1).innerHTML = `${value.sequenceNumber}`;
+                        row.insertCell(-1).innerHTML = `${value.validSeq}`;
+                        row.insertCell(-1).innerHTML = `${value.precursors}`;
+
+                        var time = (value.expiringTime - Date.now()) / 1000.0;
+                        row.insertCell(-1).innerHTML = time < 0.0 ? "Expired" : `${time}s`;
+                        row.insertCell(-1).innerHTML = `${value.valid}`;
+                    });
+                }
+
                 setTimeout(receiveRoutingTable, 500);
             });
         }
 
         async function receiveBlacklist() {
             sendGET("/api/blacklist", function(data) {
+                //console.log(data);
+                var table = document.getElementById("bl");
+                map = new Map(data);
+
+                if (table !== null) {
+                    for(var i = table.rows.length - 1; i > 0; i--)
+                        table.deleteRow(i);
+
+                    map.forEach((value, key, map) => {
+                        var row = table.insertRow(-1);
+                        row.insertCell(-1).innerHTML = `${key}`;
+                        var time = (value - Date.now()) / 1000.0;
+                        row.insertCell(-1).innerHTML = `${time}s`;
+                    });
+                }
+
                 setTimeout(receiveBlacklist, 500);
             });
         }
@@ -68,8 +137,6 @@
                     var data = JSON.parse(this.responseText);
                     callback(data);
                 }
-
-                setTimeout(function() { receiveMessages(); }, 500);
             };
 
             xhr.open('GET', path, true);
@@ -81,6 +148,30 @@
                 return;
 
             //sendMessage();
+        }
+
+        function getClassForAtLogType(type) {
+            switch (type) {
+                case 0:
+                    return "log-valid";
+                case 1:
+                    return "log-invalid";
+                case 2:
+                    return "log-send";
+                case 3:
+                    return "log-receive";
+            }
+        }
+
+        function getClassForCaodvLogType(type) {
+            switch (type) {
+                case 0:
+                    return "log-send";
+                case 1:
+                    return "log-valid";
+                case 2:
+                    return "log-receive";
+            }
         }
     </script>
 </body>
