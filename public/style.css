@@ -18,7 +18,7 @@
     margin: 0;
     padding: 0;
     color: var(--color-text);
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Consolas', serif;
     font-size: 14px;
 }
 
@@ -46,9 +46,10 @@ input[type=text]:focus {
 #chats {
     grid-column: 1;
     grid-row: 1;
+    overflow-y: scroll;
 }
 
-#chat {
+#chat-data {
     grid-column: 2;
     grid-row: 1;
     display: grid;
@@ -61,6 +62,12 @@ input[type=text]:focus {
     min-height: 50px;
     grid-column: 1;
     grid-row: 1;
+}
+
+#chat-header strong {
+    padding: 20px 0 0 10px;
+    display: inline-block;
+    font-size: 16px;
 }
 
 #chat-content {
@@ -122,10 +129,15 @@ input[type=text]:focus {
     grid-row: 1;
 }
 
-#chat-content::-webkit-scrollbar, #chat-log > *::-webkit-scrollbar { width: 13px; }
+#chats::-webkit-scrollbar, #chat-content::-webkit-scrollbar, #chat-log > *::-webkit-scrollbar { width: 13px; }
 
+#chats::-webkit-scrollbar-track { background-color: var(--color-darkest); }
 #chat-content::-webkit-scrollbar-track { background-color: var(--color-dark); }
 #chat-log > *::-webkit-scrollbar-track { background-color: var(--color-darkest); }
+
+#chats::-webkit-scrollbar-thumb { background-color: var(--color-darkest); }
+#chats::-webkit-scrollbar-thumb:hover { background-color: var(--color-light); }
+#chats::-webkit-scrollbar-thumb:active { background-color: var(--color-lighter); }
 
 #chat-content::-webkit-scrollbar-thumb { background-color: var(--color-darkest); }
 #chat-content::-webkit-scrollbar-thumb:hover { background-color: var(--color-light); }
@@ -178,13 +190,34 @@ input[type=text]:focus {
     width: 100%;
     font-size: 14px;
     text-overflow: ellipsis;
-    font-family: 'Consolas', serif !important;
 }
 
 .log-send { color: var(--color-log-send); }
 .log-receive { color: var(--color-log-receive); }
 .log-valid { color: var(--color-log-valid); }
 .log-invalid { color: var(--color-log-invalid); }
+
+.chat {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.chat:hover { background-color: var(--color-darker);}
+.chat:active { background-color: var(--color-dark);}
+
+.chat > * {
+    width: 100%;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.chat p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 
 .chat-message {
     padding-top: 10px;
@@ -219,6 +252,5 @@ input[type=text]:focus {
 }
 
 table td, table th {
-    font-family: 'Consolas', serif;
     text-align: center !important;
 }

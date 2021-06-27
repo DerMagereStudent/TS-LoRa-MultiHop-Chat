@@ -486,7 +486,7 @@ export class CaodvClient {
         if (!this.messages.has(textreq.originAddr))
             this.messages.set(textreq.originAddr, []);
 
-        this.messages.get(textreq.originAddr)!.push({ msg: textreq.payload, sent: true });
+        this.messages.get(textreq.originAddr)!.push({ msg: textreq.payload, sent: false });
     }
 
     handleSENDHOPACK(addr: number, msg: string): void {
@@ -509,6 +509,7 @@ export class CaodvClient {
         this.log(textReqAck, CaodvMsgLogType.Received, addr);
 
         if (textReqAck.originAddr !== this.addr) {
+            // forward text req ack
             return;
         }
 
@@ -517,10 +518,12 @@ export class CaodvClient {
         if (textreq == null)
             return;
 
-        if (!this.messages.has(textreq.msg.originAddr))
-            this.messages.set(textreq.msg.originAddr, []);
+        this.pendingOriginatedTextReqs = this.pendingOriginatedTextReqs.filter(e => !(e.msg.destAddr === textReqAck!.destAddr || e.msg.msgSeqNumber === textReqAck!.msgSeqNumber));
+
+        if (!this.messages.has(textreq.msg.destAddr))
+            this.messages.set(textreq.msg.destAddr, []);
             
-        this.messages.get(textreq.msg.originAddr)!.push({ msg: textreq.msg.payload, sent: false });
+        this.messages.get(textreq.msg.destAddr)!.push({ msg: textreq.msg.payload, sent: true });
     }
 
     //////////////////////////////////////// Helper functions ////////////////////////////////////////

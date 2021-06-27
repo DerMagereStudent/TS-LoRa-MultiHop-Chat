@@ -1,6 +1,6 @@
 
 export class ATConfig {
-    rfFrequency: number = 433000000;
+    rfFrequency: number = 433500000;
     power: number = 20;
     bandwidth: number = 9;
     spreadingFactor: number = 10;

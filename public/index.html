@@ -8,8 +8,10 @@
 </head>
 <body>
     <div id="chats" class="inline-block color-darkest-bg"></div>
-    <div id="chat">
-        <div id="chat-header" class="inline-block color-darker-bg"></div>
+    <div id="chat-data">
+        <div id="chat-header" class="inline-block color-darker-bg">
+            <strong></strong>
+        </div>
         <div id="chat-content" class="inline-block color-dark-bg"></div>
         <div id="chat-log" class="inline-block color-darkest-bg">
             <div id="at-log" class="inline-block color-darkest-bg"></div>
@@ -44,12 +46,89 @@
         </div>
     </div>
     <script>
+        var msgs = new Map();
+        
+        var chatList;
+        var currentChat = 12;
+        var currentChatHeader;
+        var chatContent;
+
         addEventListener("load", function() {
+            chatList = document.getElementById("chats");
+            currentChatHeader = document.getElementById("chat-header");
+            chatContent = document.getElementById("chat-content");
+
+            [...Array(20).keys()].map(x => x + 1).forEach(e => {
+                msgs.set(e, []);
+            });
+
+            setChatList();
+            selectChat(null, currentChat);
+
+            setTimeout(receiveMessages, 500);
             setTimeout(receiveAtLog, 500);
             setTimeout(receiveCaodvLog, 500);
             setTimeout(receiveRoutingTable, 500);
             setTimeout(receiveBlacklist, 500);
         });
+
+        function selectChat(event, addr) {
+            currentChat = addr;
+            currentChatHeader.innerHTML = `<strong>${String(addr).padStart(4, '0')}</strong>`;
+
+            chatContent.innerHTML = "";
+
+            msgs.get(addr).forEach(e => {
+                chatContent.innerHTML += 
+                    `<div class="chat-message">
+                        <div class="message-wrapper ${e.sent ? "align-right" : ""}">
+                            <div>
+                                <p class="text-field">${e.msg}</p>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function setChatList() {
+            chatList.innerHTML = "";
+            msgs.forEach((value, key, map) => {
+                chatList.innerHTML += 
+                    `<div class="chat" onclick="selectChat(event, ${key})">
+                        <strong>${String(key).padStart(4, '0')}</strong>
+                        <p>${msgs.get(key).length > 0 ? msgs.get(key)[msgs.get(key).length - 1] : "No messages"}</p>
+                    </div>`;
+            });
+        }
+
+        async function sendMessage() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/messages", true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({
+                dest: currentChat,
+                msg: document.getElementById("chat-input-text").value
+            }));
+            document.getElementById("chat-input-text").value = "";
+        }
+
+        async function receiveMessages() {
+            sendGET("/api/messages", function(data) {
+                map = new Map(data);
+
+                map.forEach((value, key, map) => {
+                    if (!msgs.has(key))
+                        return;
+
+                    value.forEach(e => {
+                        msgs.get(key).push(e);
+                    });
+                });
+
+                setChatList();
+                selectChat(null, currentChat);
+            }, receiveMessages);
+        }
 
         async function receiveAtLog() {
             sendGET("/api/at-log", function(data) {
@@ -141,7 +220,7 @@
             if(event.key !== 'Enter')
                 return;
 
-            //sendMessage();
+            sendMessage();
         }
 
         function getClassForAtLogType(type) {

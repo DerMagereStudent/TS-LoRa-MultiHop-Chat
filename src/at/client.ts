@@ -108,7 +108,7 @@ export class AtClient {
                 this.callbacks.forEach((val, i, c) => { val(addr, content) });
                 this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Receive); });
             } else {
-                if (this.pendingCmds.length == 0 || !msg.startsWith("AT")) {
+                if (this.pendingCmds.length == 0) {
                     setTimeout(this.run.bind(this), 20);
                     return;
                 }
