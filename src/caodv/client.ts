@@ -478,7 +478,7 @@ export class CaodvClient {
             if (this.routingTable.has(textreq.destAddr) && this.routingTable.get(textreq.destAddr)!.valid) {
                 this.client.beginSend(new AtCmdSend(this.routingTable.get(textreq.destAddr)!.nextHop, textreq.str()));
                 this.log(textreq, CaodvMsgLogType.Forwarded, this.routingTable.get(textreq.destAddr)!.nextHop);
-                // TODO: wait for hop ack
+                this.validateActiveRoute(textreq.destAddr);
             }
 
             return;
@@ -492,6 +492,8 @@ export class CaodvClient {
 
         this.client.beginSend(new AtCmdSend(addr, textreqack.str()));
         this.log(textreqack, CaodvMsgLogType.Originated, addr);
+
+        this.validateActiveRoute(addr);
         
         if (!this.messages.has(textreq.originAddr))
             this.messages.set(textreq.originAddr, []);
@@ -506,7 +508,6 @@ export class CaodvClient {
             return;
 
         this.log(hopAck, CaodvMsgLogType.Received, addr);
-
         this.pendingTextReqs = this.pendingTextReqs.filter(e => e.msg.msgSeqNumber !== hopAck?.msgSeqNumber);
     }
 
@@ -523,6 +524,7 @@ export class CaodvClient {
             if (this.routingTable.has(textReqAck.originAddr) && this.routingTable.get(textReqAck.originAddr)!.isValid()) {
                 this.client.beginSend(new AtCmdSend(this.routingTable.get(textReqAck.originAddr)!.nextHop, textReqAck.str()));
                 this.log(textReqAck, CaodvMsgLogType.Forwarded, this.routingTable.get(textReqAck.originAddr)!.nextHop);
+                this.validateActiveRoute(addr);
             }
 
             return;
@@ -560,6 +562,11 @@ export class CaodvClient {
 
     sendRERR(addr: number): void {
 
+    }
+
+    validateActiveRoute(dest: number) {
+        if (this.routingTable.has(dest))
+            this.routingTable.get(dest)!.expiringTime = Date.now() + CaodvParams.ROUTE_LIFETIME;
     }
 
     log(msg: CaodvRREQ | CaodvRREP | CaodvRERR | RREPACK | CaodvSendTextReq | CaodvSendTextReqAck | CaodvSendHopAck, type: CaodvMsgLogType, addr: number) {
