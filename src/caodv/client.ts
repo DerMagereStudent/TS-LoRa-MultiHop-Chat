@@ -109,7 +109,7 @@ export class CaodvClient {
         this.msgLog = [];
         this.messages = new Map<number, { msg: string, sent: boolean }[]>();
 
-        this.addr = 18;
+        this.addr = 11;
         this.broadcastID = 0;
         this.seqNumber = 0;
         this.msgSeqNumber = 0;
@@ -261,6 +261,12 @@ export class CaodvClient {
             if (value.expiringTime >= Date.now())
                 return;
 
+            if (value.tries >= CaodvParams.MAX_TRIES) {
+                array.splice(index, 1);
+                this.pendingOriginatedTextReqs = this.pendingOriginatedTextReqs.filter(e => !(e.msg.originAddr === value.msg.originAddr && e.msg.destAddr === value.msg.destAddr && e.msg.msgSeqNumber === value.msg.msgSeqNumber));
+                return;
+            }
+
             if (!this.routingTable.has(value.msg.destAddr) || !this.routingTable.get(value.msg.destAddr)!.isValid()) {
                 array.splice(index, 1);
                 return;
@@ -344,7 +350,7 @@ export class CaodvClient {
 
         //if (this.addr == rreq.destAddr) {
             if (!rreq.unknownSeq && rreq.destSeqNumber == this.incrementedSeqNumber())
-                this.incrementSeqNumber();
+                this.incrementSeqNumber(); 
 
             rrep.destSeqNumber = this.seqNumber;
             rrep.remainingLifeTime = CaodvParams.ROUTE_LIFETIME_S;
@@ -447,11 +453,14 @@ export class CaodvClient {
 
         this.log(textreq, CaodvMsgLogType.Received, addr);
 
+        if (textreq.originAddr === this.addr)
+            return;
+
         // Drop text req if not new
-        //if (this.clientInfo.has(textreq.originAddr)) { // if no entry guaranteed to be new
-        //    if (ByteUtils.subtract(textreq.msgSeqNumber, this.clientInfo.get(textreq.originAddr)!.msgSeqNumber) <= 0)
-        //        return;
-        //}
+        // if (this.clientInfo.has(textreq.originAddr)) { // if no entry guaranteed to be new
+        //     if (ByteUtils.subtract(textreq.msgSeqNumber, this.clientInfo.get(textreq.originAddr)!.msgSeqNumber) <= 0)
+        //         return;
+        // }
 
         // update msg seq number for originator
         if (!this.clientInfo.has(textreq.originAddr))
@@ -510,6 +519,11 @@ export class CaodvClient {
 
         if (textReqAck.originAddr !== this.addr) {
             // forward text req ack
+            if (this.routingTable.has(textReqAck.originAddr) && this.routingTable.get(textReqAck.originAddr)!.isValid()) {
+                this.client.beginSend(new AtCmdSend(this.routingTable.get(textReqAck.originAddr)!.nextHop, textReqAck.str()));
+                this.log(textReqAck, CaodvMsgLogType.Forwarded, this.routingTable.get(textReqAck.originAddr)!.nextHop);
+            }
+
             return;
         }
 

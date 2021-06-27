@@ -26,7 +26,18 @@ app.get('/api/caodv-log', (req, res) => {
 });
 
 app.get('/api/routing-table', (req, res) => {
-    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify([...client.routingTable.entries()]));
+    res.status(200).setHeader('Content-Type', 'application/json').send(JSON.stringify([...client.routingTable.entries()].map(e => [
+        e[0],
+        {
+            nextHop: e[1].nextHop,
+            hopCount: e[1].hopCount,
+            sequenceNumber: e[1].sequenceNumber,
+            validSeq: e[1].validSeq,
+            precursors: Array.from(e[1].precursors),
+            expiringTime: e[1].expiringTime,
+            valid: e[1].valid
+        }
+    ])));
 });
 
 app.get('/api/blacklist', (req, res) => {

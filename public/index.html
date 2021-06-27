@@ -96,7 +96,7 @@
                 chatList.innerHTML += 
                     `<div class="chat" onclick="selectChat(event, ${key})">
                         <strong>${String(key).padStart(4, '0')}</strong>
-                        <p>${msgs.get(key).length > 0 ? msgs.get(key)[msgs.get(key).length - 1] : "No messages"}</p>
+                        <p>${msgs.get(key).length > 0 ? msgs.get(key)[msgs.get(key).length - 1].msg : ""}</p>
                     </div>`;
             });
         }
@@ -169,7 +169,7 @@
                         row.insertCell(-1).innerHTML = `${value.hopCount}`;
                         row.insertCell(-1).innerHTML = `${value.sequenceNumber}`;
                         row.insertCell(-1).innerHTML = `${value.validSeq}`;
-                        row.insertCell(-1).innerHTML = `${value.precursors}`;
+                        row.insertCell(-1).innerHTML = `${JSON.stringify(value.precursors)}`;
 
                         var time = (value.expiringTime - Date.now()) / 1000.0;
                         row.insertCell(-1).innerHTML = time < 0.0 ? "Expired" : `${time}s`;
