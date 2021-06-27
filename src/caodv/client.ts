@@ -168,11 +168,12 @@ export class CaodvClient {
     }
 
     onRoute(dest: number) {
-        this.pendingMessages.filter(e => e.dest == dest).forEach(e => {
+        this.pendingMessages.filter(e => e.dest == dest).forEach((e, index, map) => {
             if (!this.routingTable.has(dest) || !this.routingTable.get(dest)!.isValid())
                 return;
 
             this.sendNewTextReq(dest, e.msg);
+            this.pendingMessages.slice(index, 1);
         });
     }
 
@@ -527,12 +528,12 @@ export class CaodvClient {
             return;
         }
 
-        var textreq: PendingPacket<CaodvSendTextReq> | undefined = this.pendingOriginatedTextReqs.find(e => e.msg.destAddr === textReqAck!.destAddr || e.msg.msgSeqNumber === textReqAck!.msgSeqNumber);
+        var textreq: PendingPacket<CaodvSendTextReq> | undefined = this.pendingOriginatedTextReqs.find(e => e.msg.msgSeqNumber === textReqAck!.msgSeqNumber);
 
         if (textreq == null)
             return;
 
-        this.pendingOriginatedTextReqs = this.pendingOriginatedTextReqs.filter(e => !(e.msg.destAddr === textReqAck!.destAddr || e.msg.msgSeqNumber === textReqAck!.msgSeqNumber));
+        this.pendingOriginatedTextReqs = this.pendingOriginatedTextReqs.filter(e => e.msg.msgSeqNumber !== textReqAck!.msgSeqNumber);
 
         if (!this.messages.has(textreq.msg.destAddr))
             this.messages.set(textreq.msg.destAddr, []);
