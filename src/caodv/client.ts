@@ -265,6 +265,11 @@ export class CaodvClient {
             if (value.tries >= CaodvParams.MAX_TRIES) {
                 array.splice(index, 1);
                 this.pendingOriginatedTextReqs = this.pendingOriginatedTextReqs.filter(e => !(e.msg.originAddr === value.msg.originAddr && e.msg.destAddr === value.msg.destAddr && e.msg.msgSeqNumber === value.msg.msgSeqNumber));
+
+                // cannot reach node so invalidate route and send err
+                var keysToInvalidate: number[] = [...this.routingTable.keys()].filter(key => this.routingTable.get(key)!.isValid() && (key === value.msg.destAddr || this.routingTable.get(key)!.nextHop === value.msg.destAddr));
+                this.sendRERR(keysToInvalidate);
+
                 return;
             }
 
@@ -443,7 +448,26 @@ export class CaodvClient {
     }
 
     handleRERR(addr: number, msg: string): void {
-        
+        var rerr: CaodvRERR | undefined = CaodvRERR.parse(msg);
+
+        if (rerr == null)
+            return;
+
+        this.log(rerr, CaodvMsgLogType.Received, addr);
+
+        var keysToInvalidate: number[] = [...this.routingTable.keys()].filter(key => 
+            this.routingTable.get(key)!.valid &&
+            this.routingTable.get(key)!.nextHop === addr &&
+            rerr!.unreachableInfo.find(e => e.addr == key) !== null &&
+            ByteUtils.subtract(rerr!.unreachableInfo.find(e => e.addr == key)!.seq, this.routingTable.get(key)!.sequenceNumber) > 0
+        );
+
+        keysToInvalidate.forEach(key => {
+            var entry: RoutingTableEntry = this.routingTable.get(key)!;
+            entry.sequenceNumber = rerr!.unreachableInfo.find(e => e.addr == key)!.seq;
+        });
+
+        this.sendRERR(keysToInvalidate);
     }
 
     handleSENDTEXTREQ(addr: number, msg: string): void {
@@ -560,8 +584,19 @@ export class CaodvClient {
         return this.blacklist.has(addr) && this.blacklist.get(addr)! >= Date.now();
     }
 
-    sendRERR(addr: number): void {
+    sendRERR(keysToInvalidate: number[]): void {
+        keysToInvalidate.forEach(key => {
+            var entry: RoutingTableEntry = this.routingTable.get(key)!;
 
+            if (entry.precursors.size === 0)
+                return;
+
+            var rerr: CaodvRERR = new CaodvRERR([{ addr: key, seq: entry.sequenceNumber }]);
+            entry.valid = false;
+            var addr: number = entry.precursors.size > 1 ? 0 : entry.precursors.values().next().value;
+            this.client.beginSend(new AtCmdSend(addr, rerr.str()));
+            this.log(rerr, CaodvMsgLogType.Originated, addr);
+        });
     }
 
     validateActiveRoute(dest: number) {
