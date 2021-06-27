@@ -59,9 +59,7 @@
                     log.innerHTML += `<p class="log-message ${getClassForAtLogType(element.type)}">${element.msg}</p>`;
                     log.scrollTo(0, log.scrollHeight);
                 });
-
-                setTimeout(receiveAtLog, 500);
-            });
+            }, receiveAtLog);
         }
 
         async function receiveCaodvLog() {
@@ -72,9 +70,7 @@
                     log.innerHTML += `<p class="log-message ${getClassForCaodvLogType(element.type)}">${element.msg}</p>`;
                     log.scrollTo(0, log.scrollHeight);
                 });
-
-                setTimeout(receiveCaodvLog, 500);
-            });
+            }, receiveCaodvLog);
         }
 
         async function receiveRoutingTable() {
@@ -101,9 +97,7 @@
                         row.insertCell(-1).innerHTML = `${value.valid}`;
                     });
                 }
-
-                setTimeout(receiveRoutingTable, 500);
-            });
+            }, receiveRoutingTable);
         }
 
         async function receiveBlacklist() {
@@ -123,12 +117,10 @@
                         row.insertCell(-1).innerHTML = `${time}s`;
                     });
                 }
-
-                setTimeout(receiveBlacklist, 500);
-            });
+            }, receiveBlacklist);
         }
 
-        async function sendGET(path, callback) {
+        async function sendGET(path, callback, recall) {
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function () {
                 if (this.readyState != 4) return;
@@ -137,6 +129,8 @@
                     var data = JSON.parse(this.responseText);
                     callback(data);
                 }
+
+                setTimeout(recall, 500);
             };
 
             xhr.open('GET', path, true);

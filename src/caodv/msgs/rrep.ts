@@ -24,12 +24,12 @@ export class CaodvRREP {
             this.originAddr,
             this.destAddr,
             ByteUtils.unsigned(this.destSeqNumber),
-            Math.round(this.remainingLifeTime / 1000)
+            this.remainingLifeTime
         ]);
     }
 
     static parse(msg: string): CaodvRREP | undefined {
-        if (msg.length < 6)
+        if (msg.length < 6 || msg.length > 6)
             return undefined;
 
         var bytes: number[] = Parsing.strToBytes(msg, 0, 6);

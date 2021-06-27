@@ -2,7 +2,7 @@ import { ByteUtils } from "../../utils/byteutils";
 import { Parsing } from "../../utils/parsing";
 
 export class CaodvSendTextReqAck {
-    type: number = 5;
+    type: number = 7;
     originAddr: number;
     destAddr: number;
     msgSeqNumber: number;
@@ -23,7 +23,7 @@ export class CaodvSendTextReqAck {
     }
 
     static parse(msg: string): CaodvSendTextReqAck | undefined {
-        if (msg.length < 4)
+        if (msg.length < 4 || msg.length > 4)
             return undefined;
 
         var bytes: number[] = Parsing.strToBytes(msg.slice(0, 4), 0, 4);

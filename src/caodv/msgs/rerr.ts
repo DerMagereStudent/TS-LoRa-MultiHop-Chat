@@ -3,28 +3,19 @@ import { Parsing } from "../../utils/parsing";
 
 export class CaodvRERR {
     type: number = 3;
-    unreachableDestAddr: number;
-    unreachableDestSeqNumber: number;
-    additionalAddrs: number[];
-    additionalSeqNumbers: number[];
+    unreachableInfo: { addr: number, seq: number }[];
 
-    constructor(unreachableDestAddr: number, unreachableDestSeqNumber: number, additionalAddrs: number[], additionalSeqNumbers: number[]) {
-        this.unreachableDestAddr = unreachableDestAddr;
-        this.unreachableDestSeqNumber = unreachableDestSeqNumber;
-        this.additionalAddrs = additionalAddrs;
-        this.additionalSeqNumbers = additionalSeqNumbers;
+    constructor(unreachableInfo: { addr: number, seq: number }[]) {
+        this.unreachableInfo = unreachableInfo;
     }
 
     str(): string {
         return  Parsing.bytesToStr(
             [
                 this.type,
-                1 + this.additionalAddrs.length,
-                this.unreachableDestAddr,
-                ByteUtils.unsigned(this.unreachableDestSeqNumber)
+                this.unreachableInfo.length,
             ]
-            .concat(this.additionalAddrs)
-            .concat(this.additionalSeqNumbers.map(n => ByteUtils.unsigned(n)))
+            .concat.apply([], this.unreachableInfo.map(e => [e.addr, ByteUtils.unsigned(e.seq)]))
         );
     }
 
@@ -34,24 +25,15 @@ export class CaodvRERR {
 
         var bytes: number[] = Parsing.strToBytes(msg, 0, msg.length);
 
-        var count: number = bytes[1];
-        var destAddr: number = bytes[2];
-        var destSeqNumber: number = ByteUtils.signed(bytes[3]);
+        var count: number = Math.max(bytes[1], 1);
+        bytes = bytes.slice(2);
 
-        bytes = bytes.slice(4);
+        count = Math.min(count, bytes.length % 2 === 0 ? bytes.length / 2 : (bytes.length - 1) / 2);
+        var unreachableInfo: { addr: number, seq: number }[] = [];
 
-        var addAddr: number[] = bytes.slice(0, count);
+        for (var i: number = 0; i < count; i++)
+            unreachableInfo.push({ addr: bytes[i * 2], seq: ByteUtils.signed(bytes[i * 2 + 1])});
 
-        if (addAddr.length < count)
-            addAddr.concat(new Array(count - addAddr.length).fill(0));
-
-        bytes = bytes.slice(count);
-
-        var addSeqNumbers: number[] = bytes.slice(0, count).map(n => ByteUtils.signed(n));
-
-        if (addSeqNumbers.length < count)
-            addSeqNumbers.concat(new Array(count - addSeqNumbers.length).fill(0));
-
-        return new CaodvRERR(destAddr, destSeqNumber, addAddr, addSeqNumbers);
+        return new CaodvRERR(unreachableInfo);
     }
 }

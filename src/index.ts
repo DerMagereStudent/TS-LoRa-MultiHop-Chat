@@ -32,5 +32,5 @@ var client: CaodvClient = new CaodvClient();
 app.listen(PORT, () => {
     console.log(`Listening to port ${PORT}`);
     client.start();
-    client.requestRoute(10);
+    client.beginSend(12, "Hallo Enrico");
 });

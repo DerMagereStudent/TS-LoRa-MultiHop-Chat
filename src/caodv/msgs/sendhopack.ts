@@ -17,7 +17,7 @@ export class CaodvSendHopAck {
     }
 
     static parse(msg: string): CaodvSendHopAck | undefined {
-        if (msg.length < 2)
+        if (msg.length < 2 || msg.length > 2)
             return undefined;
 
         var bytes: number[] = Parsing.strToBytes(msg, 0, 2);

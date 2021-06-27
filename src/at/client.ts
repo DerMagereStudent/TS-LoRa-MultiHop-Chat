@@ -8,6 +8,7 @@ import { AtCmd, AtCmdState } from "./cmd/atcmd";
 import { AtCmdAddr } from "./cmd/atcmdaddr";
 import { AtCmdCfg } from "./cmd/atcmdcfg";
 import { AtCmdRst } from "./cmd/atcmdrst";
+import { AtCmdRx } from "./cmd/atcmdrx";
 
 export interface MsgCallback {
     (addr: number, msg: string): void;
@@ -68,6 +69,7 @@ export class AtClient {
         this.beginSend(new AtCmdRst());
         this.beginSend(new AtCmdCfg(acfg));
         this.beginSend(new AtCmdAddr(18));
+        this.beginSend(new AtCmdRx());
 
         this.running = true;
         this.run();
@@ -106,7 +108,7 @@ export class AtClient {
                 this.callbacks.forEach((val, i, c) => { val(addr, content) });
                 this.logCallbacks.forEach((val, i, c) => { val(msg, AtLogType.Receive); });
             } else {
-                if (this.pendingCmds.length == 0) {
+                if (this.pendingCmds.length == 0 || !msg.startsWith("AT")) {
                     setTimeout(this.run.bind(this), 20);
                     return;
                 }

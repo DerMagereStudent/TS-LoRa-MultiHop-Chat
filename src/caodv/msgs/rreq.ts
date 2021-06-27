@@ -35,7 +35,7 @@ export class CaodvRREQ {
     }
 
     static parse(msg: string): CaodvRREQ | undefined {
-        if (msg.length < 8)
+        if (msg.length < 8 || msg.length > 8)
             return undefined;
 
         var bytes = Parsing.strToBytes(msg, 0, 8);

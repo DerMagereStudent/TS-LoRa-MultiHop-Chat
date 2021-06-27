@@ -51,15 +51,11 @@ export class PendingPacket<T> {
     tries: number;
     expiringTime: number;
 
-    constructor(rreq: T, tries: number, expiringTime: number) {
-        this.msg = rreq;
+    constructor(msg: T, tries: number, expiringTime: number) {
+        this.msg = msg;
         this.tries = tries;
         this.expiringTime = expiringTime;
     }
-}
-
-export interface RouteCallback {
-    (dest: number): void;
 }
 
 export interface MsgHandler {
@@ -77,37 +73,46 @@ export class CaodvClient {
 
     routingTable: Map<number, RoutingTableEntry>;
     clientInfo: Map<number, ClientInformation>;
-    pendingRequests: Map<number, PendingPacket<CaodvRREQ>>;
-    pendingReplies: Map<number, PendingPacket<CaodvRREP>[]>;
     blacklist: Map<number, number> // Map dest to entry expiring datetime in ms
 
+    pendingRequests: Map<number, PendingPacket<CaodvRREQ>>;
+    pendingReplies: Map<number, PendingPacket<CaodvRREP>[]>;
+    pendingMessages: { dest: number, msg: string }[];
+    pendingTextReqs: PendingPacket<CaodvSendTextReq>[];
+    pendingOriginatedTextReqs: PendingPacket<CaodvSendTextReq>[];
+
     msgHandlers: Map<number, MsgHandler> // Map msg type to corresponding handler function pointer.
-    routeCallbacks: RouteCallback[];
 
     atLog: { msg: string, type: AtLogType }[];
     msgLog: { msg: string, type: CaodvMsgLogType }[];
+    messages: Map<number, { msg: string, sent: boolean }[]>;
 
     addr: number;
     broadcastID: number;
     seqNumber: number;
+    msgSeqNumber: number;
 
     constructor() {
         this.client = new AtClient();
         
         this.routingTable = new Map<number, RoutingTableEntry>();
         this.clientInfo = new Map<number, ClientInformation>();
-        this.pendingRequests = new Map<number, PendingPacket<CaodvRREQ>>();
-        this.pendingReplies = new Map<number, PendingPacket<CaodvRREP>[]>();
         this.blacklist = new Map<number, number>();
 
-        this.routeCallbacks = [];
+        this.pendingRequests = new Map<number, PendingPacket<CaodvRREQ>>();
+        this.pendingReplies = new Map<number, PendingPacket<CaodvRREP>[]>();
+        this.pendingMessages = [];
+        this.pendingTextReqs = [];
+        this.pendingOriginatedTextReqs = [];
 
         this.atLog = [];
         this.msgLog = [];
+        this.messages = new Map<number, { msg: string, sent: boolean }[]>();
 
         this.addr = 18;
         this.broadcastID = 0;
         this.seqNumber = 0;
+        this.msgSeqNumber = 0;
 
         this.msgHandlers = new Map<number, MsgHandler>();
         this.msgHandlers.set(1, this.handleRREQ.bind(this));
@@ -127,11 +132,12 @@ export class CaodvClient {
         setTimeout(this.maintenanceProc.bind(this), 20);
     }
 
-    hasRoute = (dest: number): boolean => this.routingTable.get(dest)!.expiringTime > Date.now();
-
-    registerRouteCallback(callback: RouteCallback): void {
-        if (!this.routeCallbacks.includes(callback))
-            this.routeCallbacks.push(callback);
+    beginSend(dest: number, msg: string) {
+        if (!this.routingTable.has(dest) || !this.routingTable.get(dest)!.isValid()) {
+            this.pendingMessages.push({ dest: dest, msg: msg });
+            this.requestRoute(dest);
+        } else
+            this.sendNewTextReq(dest, msg);
     }
 
     requestRoute(dest: number): void {
@@ -159,6 +165,25 @@ export class CaodvClient {
 
         this.client.beginSend(new AtCmdSend(0, rreq.str()));
         this.log(rreq, CaodvMsgLogType.Originated, 0);
+    }
+
+    onRoute(dest: number) {
+        this.pendingMessages.filter(e => e.dest == dest).forEach(e => {
+            if (!this.routingTable.has(dest) || !this.routingTable.get(dest)!.isValid())
+                return;
+
+            this.sendNewTextReq(dest, e.msg);
+        });
+    }
+
+    sendNewTextReq(dest: number, msg: string) {
+        this.msgSeqNumber = ByteUtils.inc(this.msgSeqNumber);
+            
+        var textreq: CaodvSendTextReq = new CaodvSendTextReq(this.addr, dest, this.msgSeqNumber, msg);
+        this.pendingTextReqs.push(new PendingPacket(textreq, 1, Date.now() + CaodvParams.TIMEOUT_ACK * this.routingTable.get(dest)!.hopCount));
+        this.pendingOriginatedTextReqs.push(new PendingPacket(textreq, 1, Date.now() + CaodvParams.TIMEOUT_ACK * this.routingTable.get(dest)!.hopCount));
+        this.client.beginSend(new AtCmdSend(this.routingTable.get(dest)!.nextHop, textreq.str()));
+        this.log(textreq, CaodvMsgLogType.Originated, this.routingTable.get(dest)!.nextHop);
     }
 
     onMessage(addr: number, msg: string): void {
@@ -195,9 +220,10 @@ export class CaodvClient {
             if (value.expiringTime >= Date.now())
                 return;
 
-            if (value.tries === CaodvParams.MAX_TRIES)
-                this.pendingRequests.delete(key) // TODO: Route failure
-            else {
+            if (value.tries === CaodvParams.MAX_TRIES) {
+                this.pendingRequests.delete(key)
+                this.pendingMessages = this.pendingMessages.filter(e => e.dest !== value.msg.destAddr); // Drop all messages with dest of failed rreq
+            } else {
                 var newRreq: CaodvRREQ = value.msg;
                 newRreq.broadcastID++;
                 newRreq.originSeqNumber = this.seqNumber;
@@ -229,6 +255,22 @@ export class CaodvClient {
             
             if (shouldClear)
                 this.pendingReplies.delete(key);
+        });
+
+        this.pendingTextReqs.forEach((value, index, array) => {
+            if (value.expiringTime >= Date.now())
+                return;
+
+            if (!this.routingTable.has(value.msg.destAddr) || !this.routingTable.get(value.msg.destAddr)!.isValid()) {
+                array.splice(index, 1);
+                return;
+            }
+
+            var entry: RoutingTableEntry = this.routingTable.get(value.msg.destAddr)!;
+            value.tries++;
+            value.expiringTime = Date.now() + entry.hopCount * CaodvParams.TIMEOUT_ACK;
+            this.client.beginSend(new AtCmdSend(entry.nextHop, value.msg.str()));
+            this.log(value.msg, CaodvMsgLogType.Originated, entry.nextHop);
         });
 
         setTimeout(this.maintenanceProc.bind(this), 20);
@@ -371,17 +413,19 @@ export class CaodvClient {
 
             this.routingTable.get(rrep.destAddr)!.precursors.add(nextHopToSrc);
             this.routingTable.get(addr)?.precursors.add(nextHopToSrc); // TODO: RFC 6.7 last sentence. rrep.previousHop or destEntry.nextHop
-        } else if (this.addr === rrep.originAddr && this.pendingRequests.has(rrep.destAddr)) {
-            this.routeCallbacks.forEach((callback, index, array) => {
-                callback(rrep!.destAddr);
-            });
-            
-            this.pendingRequests.delete(rrep.destAddr);
-        }
 
-        // send reply ack to previous hop
-        this.client.beginSend(new AtCmdSend(addr, new RREPACK().str()));
-        this.log(new RREPACK(), CaodvMsgLogType.Originated, addr);
+            // send reply ack to previous hop
+            this.client.beginSend(new AtCmdSend(addr, new RREPACK().str()));
+            this.log(new RREPACK(), CaodvMsgLogType.Originated, addr);
+        } else if (this.addr === rrep.originAddr && this.pendingRequests.has(rrep.destAddr)) {
+            this.pendingRequests.delete(rrep.destAddr);
+
+            // send reply ack to previous hop
+            this.client.beginSend(new AtCmdSend(addr, new RREPACK().str()));
+            this.log(new RREPACK(), CaodvMsgLogType.Originated, addr);
+
+            this.onRoute(rrep!.destAddr);
+        }
     }
 
     handleRREPACK(addr: number, msg: string): void {
@@ -403,15 +447,80 @@ export class CaodvClient {
 
         this.log(textreq, CaodvMsgLogType.Received, addr);
 
+        // Drop text req if not new
+        //if (this.clientInfo.has(textreq.originAddr)) { // if no entry guaranteed to be new
+        //    if (ByteUtils.subtract(textreq.msgSeqNumber, this.clientInfo.get(textreq.originAddr)!.msgSeqNumber) <= 0)
+        //        return;
+        //}
+
+        // update msg seq number for originator
+        if (!this.clientInfo.has(textreq.originAddr))
+            this.clientInfo.set(textreq.originAddr, new ClientInformation(0, textreq.msgSeqNumber));
+        else
+            this.clientInfo.get(textreq.originAddr)!.msgSeqNumber = textreq.msgSeqNumber;
+
+        var hopAck: CaodvSendHopAck = new CaodvSendHopAck(textreq.msgSeqNumber);
+        this.client.beginSend(new AtCmdSend(addr, hopAck.str()));
+        this.log(hopAck, CaodvMsgLogType.Originated, addr);
+
+        if (textreq.destAddr !== this.addr) {
+            // Drop msg if no route or route is not active
+            if (this.routingTable.has(textreq.destAddr) && this.routingTable.get(textreq.destAddr)!.valid) {
+                this.client.beginSend(new AtCmdSend(this.routingTable.get(textreq.destAddr)!.nextHop, textreq.str()));
+                this.log(textreq, CaodvMsgLogType.Forwarded, this.routingTable.get(textreq.destAddr)!.nextHop);
+                // TODO: wait for hop ack
+            }
+
+            return;
+        }
+
+        var textreqack: CaodvSendTextReqAck = new CaodvSendTextReqAck(
+            textreq.originAddr,
+            textreq.destAddr,
+            textreq.msgSeqNumber
+        );
+
+        this.client.beginSend(new AtCmdSend(addr, textreqack.str()));
+        this.log(textreqack, CaodvMsgLogType.Originated, addr);
         
+        if (!this.messages.has(textreq.originAddr))
+            this.messages.set(textreq.originAddr, []);
+
+        this.messages.get(textreq.originAddr)!.push({ msg: textreq.payload, sent: true });
     }
 
     handleSENDHOPACK(addr: number, msg: string): void {
-        
+        var hopAck: CaodvSendHopAck | undefined = CaodvSendHopAck.parse(msg);
+
+        if (hopAck == null)
+            return;
+
+        this.log(hopAck, CaodvMsgLogType.Received, addr);
+
+        this.pendingTextReqs = this.pendingTextReqs.filter(e => e.msg.msgSeqNumber !== hopAck?.msgSeqNumber);
     }
 
     handleSENDTEXTREQACK(addr: number, msg: string): void {
-        
+        var textReqAck: CaodvSendTextReqAck | undefined = CaodvSendTextReqAck.parse(msg);
+
+        if (textReqAck == null)
+            return;
+
+        this.log(textReqAck, CaodvMsgLogType.Received, addr);
+
+        if (textReqAck.originAddr !== this.addr) {
+            return;
+        }
+
+        var textreq: PendingPacket<CaodvSendTextReq> | undefined = this.pendingOriginatedTextReqs.find(e => e.msg.destAddr === textReqAck!.destAddr || e.msg.msgSeqNumber === textReqAck!.msgSeqNumber);
+
+        if (textreq == null)
+            return;
+
+        if (!this.messages.has(textreq.msg.originAddr))
+            this.messages.set(textreq.msg.originAddr, []);
+            
+        this.messages.get(textreq.msg.originAddr)!.push({ msg: textreq.msg.payload, sent: false });
     }
 
     //////////////////////////////////////// Helper functions ////////////////////////////////////////
@@ -436,7 +545,7 @@ export class CaodvClient {
     }
 
     log(msg: CaodvRREQ | CaodvRREP | CaodvRERR | RREPACK | CaodvSendTextReq | CaodvSendTextReqAck | CaodvSendHopAck, type: CaodvMsgLogType, addr: number) {
-        var str: string = `[${new Date().toLocaleTimeString()}] ${msg.constructor.name} ${type !== CaodvMsgLogType.Received ? "to     " : "from"} ${addr <= 0 ? "FFFF" : String(addr).padStart(4, '0')} (${[].concat.apply([], Object.values(msg)).join(", ")})`;
+        var str: string = `[${new Date().toLocaleTimeString()}] ${msg.constructor.name} ${type !== CaodvMsgLogType.Received ? "to  " : "from"} ${addr <= 0 ? "FFFF" : String(addr).padStart(4, '0')} (${[].concat.apply([], Object.values(msg)).join(", ")})`;
         console.log(str);
         this.msgLog.push({msg: str, type: type});
     }
