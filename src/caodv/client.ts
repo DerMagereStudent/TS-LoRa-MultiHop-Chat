@@ -109,7 +109,7 @@ export class CaodvClient {
         this.msgLog = [];
         this.messages = new Map<number, { msg: string, sent: boolean }[]>();
 
-        this.addr = 11;
+        this.addr = 18;
         this.broadcastID = 0;
         this.seqNumber = 0;
         this.msgSeqNumber = 0;
@@ -269,6 +269,7 @@ export class CaodvClient {
                 // cannot reach node so invalidate route and send err
                 var keysToInvalidate: number[] = [...this.routingTable.keys()].filter(key => this.routingTable.get(key)!.isValid() && (key === value.msg.destAddr || this.routingTable.get(key)!.nextHop === value.msg.destAddr));
                 this.sendRERR(keysToInvalidate);
+                console.log(keysToInvalidate);
 
                 return;
             }
@@ -458,8 +459,8 @@ export class CaodvClient {
         var keysToInvalidate: number[] = [...this.routingTable.keys()].filter(key => 
             this.routingTable.get(key)!.valid &&
             this.routingTable.get(key)!.nextHop === addr &&
-            rerr!.unreachableInfo.find(e => e.addr == key) !== null &&
-            ByteUtils.subtract(rerr!.unreachableInfo.find(e => e.addr == key)!.seq, this.routingTable.get(key)!.sequenceNumber) > 0
+            rerr!.unreachableInfo.find(e => e.addr == key) &&
+            ByteUtils.subtract(rerr!.unreachableInfo.find(e => e.addr == key)!.seq, this.routingTable.get(key)!.sequenceNumber) >= 0
         );
 
         keysToInvalidate.forEach(key => {

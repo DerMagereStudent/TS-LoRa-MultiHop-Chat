@@ -68,7 +68,7 @@ export class AtClient {
 
         this.beginSend(new AtCmdRst());
         this.beginSend(new AtCmdCfg(acfg));
-        this.beginSend(new AtCmdAddr(11));
+        this.beginSend(new AtCmdAddr(18));
         this.beginSend(new AtCmdRx());
 
         this.running = true;
