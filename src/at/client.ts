@@ -2,7 +2,7 @@ import { Socket } from "net";
 import { createInterface } from "readline";
 import SerialPort from "serialport";
 import { FlagUtils } from "../utils/flagutils";
-import { ATConfig } from "./cfg/atcfg";
+import { AtConfig } from "./cfg/atcfg";
 import { PortConfig } from "./cfg/portcfg";
 import { AtCmd, AtCmdState } from "./cmd/atcmd";
 import { AtCmdAddr } from "./cmd/atcmdaddr";
@@ -53,7 +53,7 @@ export class AtClient {
         });
     }
 
-    start(pcfg: PortConfig, acfg: ATConfig) {
+    start(pcfg: PortConfig, acfg: AtConfig) {
         this.port = new SerialPort(
             pcfg.device,
             {

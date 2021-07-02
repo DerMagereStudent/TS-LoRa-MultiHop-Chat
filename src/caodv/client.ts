@@ -1,5 +1,5 @@
 import { valid } from "joi";
-import { ATConfig } from "../at/cfg/atcfg";
+import { AtConfig } from "../at/cfg/atcfg";
 import { PortConfig } from "../at/cfg/portcfg";
 import { AtClient, AtLogType } from "../at/client";
 import { AtCmdSend } from "../at/cmd/atcmdsend";
@@ -128,7 +128,7 @@ export class CaodvClient {
     }
 
     start(): void {
-        this.client.start(new PortConfig(), new ATConfig());
+        this.client.start(new PortConfig(), new AtConfig());
         setTimeout(this.maintenanceProc.bind(this), 20);
     }
 
